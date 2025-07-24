@@ -6,9 +6,9 @@
 
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include <BlynkSimpleEsp32.h>
-#include <ESP32Servo.h>
-#include <HCSR04.h>
+#include <BlynkSimpleEsp32.h> // Blynk by Volodymyr
+#include <ESP32Servo.h>   // ESP32Servo by Kevin
+#include <HCSR04.h> // HCSR04 ultrasonic sensor by gamegine
 
 Servo myServo;
 BlynkTimer timer;
@@ -26,13 +26,13 @@ bool doorCurrentlyOpen = false;
 unsigned long doorOpenTime = 0;
 
 // Pin definitions
-#define TRIG1 4       // Bin level sensor
-#define ECHO1 16
-#define TRIG2 17      // Hand detection sensor
-#define ECHO2 5
+#define TRIG1 13       // Bin level sensor
+#define ECHO1 12
+#define TRIG2 14      // Hand detection sensor
+#define ECHO2 27
 #define LED_PIN 2
-#define BUZZER_PIN 22
-#define SERVO_PIN 21
+#define BUZZER_PIN 33
+#define SERVO_PIN 25
 
 // Configuration constants
 #define BIN_FULL_THRESHOLD 5.0    // cm - when bin is considered full
@@ -144,7 +144,9 @@ void binMain() {
   // Handle bin full condition
   if (binLevelDistance <= BIN_FULL_THRESHOLD) {
     Serial.println("Trash Bin is full!");
-    binAlarm();
+    if(fullBinCount < FULL_BIN_CONFIRM_COUNT) {
+      binAlarm();
+    }
     digitalWrite(LED_PIN, HIGH);
     
     fullBinCount++;
@@ -198,6 +200,8 @@ void binMain() {
     }
   }
 
+    Serial.print("Survo Angle: ");  
+    Serial.println(myServo.read()); 
   Serial.println("----------");
 }
 // --- Level Calculation ---
