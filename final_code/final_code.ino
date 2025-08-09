@@ -60,6 +60,7 @@ void setup() {
 
   myServo.attach(SERVO_PIN);
   myServo.write(0);
+  delay(4000);
 
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
   timer.setInterval(500L, binMain);
@@ -174,7 +175,7 @@ void doorOpen() {
   if (!doorCurrentlyOpen) {
     myServo.attach(SERVO_PIN);
     myServo.write(90);
-    delay(500);
+    delay(4000);
     doorCurrentlyOpen = true;
     Blynk.virtualWrite(VIRTUAL_PIN_DOOR_STATUS, 1);
     myServo.detach();
@@ -185,7 +186,7 @@ void doorClose() {
   if (doorCurrentlyOpen) {
     myServo.attach(SERVO_PIN);
     myServo.write(0);
-    delay(500);
+    delay(4000);
     doorCurrentlyOpen = false;
     Blynk.virtualWrite(VIRTUAL_PIN_DOOR_STATUS, 0);
     myServo.detach();
