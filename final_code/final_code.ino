@@ -18,19 +18,19 @@ char ssid[] = "Bdconnect";
 char pass[] = "01762603";
 
 // Pins
-#define TRIG1 4
-#define ECHO1 16
-#define TRIG2 17
-#define ECHO2 5
+#define TRIG1 13
+#define ECHO1 12
+#define TRIG2 14
+#define ECHO2 27
 #define LED_PIN 2
-#define BUZZER_PIN 22
-#define SERVO_PIN 21
+#define BUZZER_PIN 25
+#define SERVO_PIN 26
 
 // Constants
 #define BIN_FULL_THRESHOLD 3.0
-#define MAX_DISTANCE 11.0
+#define MAX_DISTANCE 20.0
 #define MIN_DISTANCE 5.0
-#define HAND_DETECT_DISTANCE 30
+#define HAND_DETECT_DISTANCE 30.00
 
 // Virtual Pins
 #define VIRTUAL_PIN_LEVEL V0
@@ -44,7 +44,7 @@ int fullBinCount = 0;
 bool isDoorLocked = false;
 bool isManualLockEnabled = false;
 bool doorCurrentlyOpen = false;
-bool manualUnlockAfterFull = false;
+// bool manualUnlockAfterFull = false;
 
 HCSR04 binLevelSensor(TRIG1, ECHO1);
 HCSR04 handDetectSensor(TRIG2, ECHO2);
@@ -59,15 +59,15 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
 
   myServo.attach(SERVO_PIN);
-  myServo.write(0);
-  delay(4000);
 
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
   timer.setInterval(500L, binMain);
-
+  
   Blynk.virtualWrite(VIRTUAL_PIN_BIN_STATUS, LOW);
   Blynk.virtualWrite(VIRTUAL_PIN_DOOR_SWITCH, 0);
   Blynk.virtualWrite(VIRTUAL_PIN_DOOR_STATUS, 0);
+
+  myServo.write(0);
 
   Serial.println("Smart Trash Bin Ready");
 }
@@ -81,15 +81,13 @@ BLYNK_WRITE(VIRTUAL_PIN_DOOR_SWITCH) {
   int switchState = param.asInt();
   isManualLockEnabled = (switchState == 1);
 
-  if (isManualLockEnabled) {
+  if (!isManualLockEnabled) {
     Serial.println("Manual UNLOCK");
     fullBinCount = 0;
     isDoorLocked = false;
-    manualUnlockAfterFull = true;  // Prevent auto-lock until emptied
-    doorOpen();
-  } else {
+  } else {    
     Serial.println("Manual LOCK");
-    doorClose();
+    isDoorLocked = true;
   }
 }
 
@@ -107,52 +105,114 @@ void binMain() {
   Serial.print(handDistance);
   Serial.print(" cm | ");
 
-  // Check full
-  if (binLevelDistance <= BIN_FULL_THRESHOLD) {
-    digitalWrite(LED_PIN, HIGH);
+  Serial.println("");
+  Serial.print("isDoorLocked: ");
+  Serial.println(isDoorLocked);
+  Serial.print("isManualLockEnabled: ");
+  Serial.println(isManualLockEnabled);
+  Serial.print("doorCurrentlyOpen: ");
+  Serial.println(doorCurrentlyOpen);
+
+  // // Check full
+  // if (binLevelDistance <= BIN_FULL_THRESHOLD) {
+  //   digitalWrite(LED_PIN, HIGH); // LED ON
+  //   fullBinCount++;
+
+  //   if (isManualLockEnabled == false && isDoorLocked == false) {
+  //     if (fullBinCount >= 5) {
+  //       isDoorLocked = true;
+  //       Blynk.virtualWrite(VIRTUAL_PIN_BIN_STATUS, HIGH);
+  //       // Blynk.logEvent("bin_full", "Trash Bin is full and auto-locked!");
+  //       Serial.println("BIN FULL → AUTO LOCKED");
+  //     }
+  //   } 
+  //   else {
+  //     Serial.println("BIN FULL → MANUAL UNLOCK OR ALREADY LOCKED");
+  //   }
+  // } else {
+  //   fullBinCount = 0;
+  //   digitalWrite(LED_PIN, LOW);
+  //   Blynk.virtualWrite(VIRTUAL_PIN_BIN_STATUS, LOW);
+  //   isDoorLocked = false;
+    
+  //   // if (manualUnlockAfterFull) {
+  //   //   manualUnlockAfterFull = false;  // Reset only when bin becomes empty
+  //   //   Serial.println("Bin emptied → Manual unlock flag reset");
+  //   // }
+
+  //   // if (!isManualLockEnabled) {
+  //   //   Serial.println("BIN MANUAL UNLOCK FOR CLEANING.");
+  //   //   isDoorLocked = false;
+  //   // }
+  // }
+ 
+
+//  if (binLevelDistance <= BIN_FULL_THRESHOLD) {
+//     digitalWrite(LED_PIN, HIGH); // LED ON
+//     fullBinCount++;
+
+//     if (fullBinCount >= 5 && isManualLockEnabled == false && isDoorLocked == false) {
+//         isManualLockEnabled = true;
+//         Blynk.virtualWrite(VIRTUAL_PIN_BIN_STATUS, HIGH);
+//         // Blynk.logEvent("bin_full", "Trash Bin is full and auto-locked!");
+//         Serial.println("BIN FULL → AUTO LOCKED");
+//     } 
+//     else {
+//       Serial.println("BIN FULL → MANUAL UNLOCK IT.");
+//     }
+
+//   } else {
+//     fullBinCount = 0;
+//     digitalWrite(LED_PIN, LOW);
+//     Blynk.virtualWrite(VIRTUAL_PIN_BIN_STATUS, LOW);
+//     isDoorLocked = false;
+//   }
+
+if (binLevelDistance <= BIN_FULL_THRESHOLD) {
+    digitalWrite(LED_PIN, HIGH); // LED ON
     fullBinCount++;
 
-    if (!isManualLockEnabled && !isDoorLocked && !manualUnlockAfterFull) {
-      if (fullBinCount >= 5) {
-        isDoorLocked = true;
-        doorClose();
+    if (fullBinCount >= 5 && !isManualLockEnabled && !isDoorLocked) {
+        isManualLockEnabled = true;
+        isDoorLocked = true;         // ✅ force door closed
+        doorCurrentlyOpen = false;   // reset open state
+
         Blynk.virtualWrite(VIRTUAL_PIN_BIN_STATUS, HIGH);
-        Blynk.logEvent("bin_full", "Trash Bin is full and auto-locked!");
-        Serial.println("BIN FULL → AUTO LOCKED");
-      }
-    } else {
-      Serial.println("BIN FULL → MANUAL UNLOCK OR ALREADY LOCKED");
+        Serial.println("BIN FULL → AUTO LOCKED & DOOR CLOSED");
+    } 
+    else {
+        Serial.println("BIN FULL → MANUAL UNLOCK IT.");
     }
-  } else {
+
+} else {
     fullBinCount = 0;
     digitalWrite(LED_PIN, LOW);
     Blynk.virtualWrite(VIRTUAL_PIN_BIN_STATUS, LOW);
+    isDoorLocked = false;
+}
 
-    if (manualUnlockAfterFull) {
-      manualUnlockAfterFull = false;  // Reset only when bin becomes empty
-      Serial.println("Bin emptied → Manual unlock flag reset");
-    }
-
-    if (!isManualLockEnabled) {
-      isDoorLocked = false;
-    }
-  }
 
   // Motion detection
   if (handDistance > 0 && handDistance <= HAND_DETECT_DISTANCE) {
-    if (!isDoorLocked) {
-      if (!doorCurrentlyOpen) {
+    if (isManualLockEnabled) {  
+        Serial.println("Hand detected but DOOR LOCKED");  
+        // Do nothing — keep door closed
+    }
+    else if (isDoorLocked && !doorCurrentlyOpen) {
         Serial.println("Hand detected → Door OPEN");
-        doorOpen();
-      }
-    } else {
-      Serial.println("Hand detected but DOOR LOCKED");
+        isDoorLocked = false; // open door
     }
-  } else {
+
+} else {
     if (doorCurrentlyOpen && !isManualLockEnabled) {
-      doorClose();
+        Serial.println("Hand not detected → Door Close");
+        isDoorLocked = true; // close door
     }
-  }
+}
+
+
+  if(isDoorLocked == true) {doorClose();}
+  else{doorOpen();}
 
   Serial.println("----------");
 }
@@ -169,26 +229,21 @@ void binAlarm() {
   tone(BUZZER_PIN, 1000);
   delay(500);
   noTone(BUZZER_PIN);
+  delay(500);
 }
 
 void doorOpen() {
-  if (!doorCurrentlyOpen) {
-    myServo.attach(SERVO_PIN);
     myServo.write(90);
-    delay(4000);
+    delay(3000);
     doorCurrentlyOpen = true;
     Blynk.virtualWrite(VIRTUAL_PIN_DOOR_STATUS, 1);
-    myServo.detach();
-  }
+    // myServo.detach();
 }
 
 void doorClose() {
-  if (doorCurrentlyOpen) {
-    myServo.attach(SERVO_PIN);
     myServo.write(0);
-    delay(4000);
+    delay(3000);
     doorCurrentlyOpen = false;
     Blynk.virtualWrite(VIRTUAL_PIN_DOOR_STATUS, 0);
-    myServo.detach();
-  }
+    // myServo.detach();
 }
