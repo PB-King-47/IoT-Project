@@ -27,8 +27,8 @@ char pass[] = "01762603";
 #define SERVO_PIN 26
 
 // Constants
-#define BIN_FULL_THRESHOLD 3.0
-#define MAX_DISTANCE 20.0
+#define BIN_FULL_THRESHOLD 5.0
+#define MAX_DISTANCE 18.67
 #define MIN_DISTANCE 5.0
 #define HAND_DETECT_DISTANCE 30.00
 
@@ -44,7 +44,7 @@ int fullBinCount = 0;
 bool isDoorLocked = false;
 bool isManualLockEnabled = false;
 bool doorCurrentlyOpen = false;
-// bool manualUnlockAfterFull = false;
+bool triggerAlarm = false;
 
 HCSR04 binLevelSensor(TRIG1, ECHO1);
 HCSR04 handDetectSensor(TRIG2, ECHO2);
@@ -122,6 +122,9 @@ void binMain() {
           isManualLockEnabled = true;   // enable manual lock mode
           isDoorLocked = true;          // keep door closed
           doorCurrentlyOpen = false;    // reset open state
+          
+          // in this here i need the alarm trigger for at 1s time
+          binAlarm();
 
           Blynk.virtualWrite(VIRTUAL_PIN_DOOR_SWITCH, HIGH);
           Blynk.virtualWrite(VIRTUAL_PIN_BIN_STATUS, HIGH);
@@ -173,7 +176,6 @@ void binAlarm() {
   tone(BUZZER_PIN, 1000);
   delay(500);
   noTone(BUZZER_PIN);
-  delay(500);
 }
 
 void doorOpen() {
