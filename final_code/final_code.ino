@@ -25,6 +25,7 @@ char pass[] = "01762603";
 #define LED_PIN 2
 #define BUZZER_PIN 25
 #define SERVO_PIN 26
+#define SWITCH_PIN 35 
 
 // Constants
 #define BIN_FULL_THRESHOLD 5.0
@@ -45,12 +46,14 @@ bool isDoorLocked = false;
 bool isManualLockEnabled = false;
 bool doorCurrentlyOpen = false;
 bool triggerAlarm = false;
+bool systemEnabled;
 
 HCSR04 binLevelSensor(TRIG1, ECHO1);
 HCSR04 handDetectSensor(TRIG2, ECHO2);
 
 void setup() {
   Serial.begin(115200);
+  pinMode(SWITCH_PIN, INPUT_PULLUP); 
   pinMode(LED_PIN, OUTPUT);
   pinMode(TRIG1, OUTPUT);
   pinMode(ECHO1, INPUT);
@@ -67,21 +70,24 @@ void setup() {
   Blynk.virtualWrite(VIRTUAL_PIN_DOOR_SWITCH, 0);
   Blynk.virtualWrite(VIRTUAL_PIN_DOOR_STATUS, 0);
 
-  myServo.write(0);
 
   Serial.println("Smart Trash Bin Ready");
 }
 
 void loop() {
-  Blynk.run();
-  timer.run();
+  systemEnabled = (digitalRead(SWITCH_PIN) == HIGH);
+  delay(500);
+  if (systemEnabled) {
+    Blynk.run();
+    timer.run();
+  } 
 }
 
 BLYNK_WRITE(VIRTUAL_PIN_DOOR_SWITCH) {
   int switchState = param.asInt();
   isManualLockEnabled = (switchState == 1);
 
-  if (!isManualLockEnabled) {
+  if (isManualLockEnabled == false) {
     Serial.println("Manual UNLOCK");
     fullBinCount = 0;
     isDoorLocked = false;
@@ -105,13 +111,6 @@ void binMain() {
   Serial.print(handDistance);
   Serial.print(" cm | ");
 
-  Serial.println("");
-  Serial.print("isDoorLocked: ");
-  Serial.println(isDoorLocked);
-  Serial.print("isManualLockEnabled: ");
-  Serial.println(isManualLockEnabled);
-  Serial.print("doorCurrentlyOpen: ");
-  Serial.println(doorCurrentlyOpen);
 
   // Check full
   if (binLevelDistance <= BIN_FULL_THRESHOLD) {
@@ -129,6 +128,10 @@ void binMain() {
           Blynk.virtualWrite(VIRTUAL_PIN_DOOR_SWITCH, HIGH);
           Blynk.virtualWrite(VIRTUAL_PIN_BIN_STATUS, HIGH);
           Serial.println("BIN FULL → AUTO LOCKED & DOOR CLOSED");
+          
+          // Optional: Send notification
+          Blynk.logEvent("bin_full", "Trash Bin is full and auto-locked!");
+
       } else {
           Serial.println("BIN FULL → MANUAL UNLOCK Or Lock it.");
       }
@@ -160,6 +163,15 @@ void binMain() {
 
   if(isDoorLocked == true) {doorClose();}
   else{doorOpen();}
+
+
+  Serial.println("");
+  Serial.print("isDoorLocked: ");
+  Serial.println(isDoorLocked);
+  Serial.print("isManualLockEnabled: ");
+  Serial.println(isManualLockEnabled);
+  Serial.print("doorCurrentlyOpen: ");
+  Serial.println(doorCurrentlyOpen);
 
   Serial.println("----------");
 }
